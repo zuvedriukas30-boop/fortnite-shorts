@@ -1,0 +1,17 @@
+{
+  "queries": [
+    "fortnite",
+    "fortnite shorts",
+    "fortnite creative"
+  ],
+  "lookbackHours": 24,
+  "maxResultsPerQuery": 50,
+  "maxDurationSeconds": 180,
+  "topN": 3,
+  "seenRetentionDays": 30,
+  "sortBy": "viewsPerHour",
+  "shortsCheck": {
+    "batchSize": 10,
+    "delayMs": 200
+  }
+}
