@@ -18,6 +18,7 @@ type Config = {
   topN: number;
   seenRetentionDays: number;
   sortBy: "viewsPerHour" | "viewCount";
+  language: string | null;
   shortsCheck: { batchSize: number; delayMs: number };
 };
 
@@ -30,6 +31,7 @@ type Video = {
   views: number;
   seconds: number;
   license: string;
+  language: string | null;
   viewsPerHour: number;
 };
 
@@ -85,7 +87,7 @@ async function youtube(path: string, params: Record<string, string>): Promise<an
 }
 
 async function searchIds(query: string, publishedAfter: string): Promise<string[]> {
-  const data = await youtube("search", {
+  const params: Record<string, string> = {
     part: "snippet",
     type: "video",
     videoDuration: "short",
@@ -93,7 +95,10 @@ async function searchIds(query: string, publishedAfter: string): Promise<string[
     publishedAfter,
     maxResults: String(config.maxResultsPerQuery),
     q: query,
-  });
+  };
+  if (config.language) params.relevanceLanguage = config.language;
+
+  const data = await youtube("search", params);
   return (data.items ?? []).map((item: any) => item?.id?.videoId).filter(Boolean);
 }
 
@@ -124,6 +129,7 @@ async function fetchDetails(ids: string[]): Promise<Video[]> {
         views,
         seconds: parseDuration(item.contentDetails?.duration ?? ""),
         license: item.status?.license ?? "youtube",
+        language: item.snippet?.defaultAudioLanguage ?? item.snippet?.defaultLanguage ?? null,
         viewsPerHour: views / hours,
       });
     }
@@ -201,6 +207,16 @@ function clock(seconds: number): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
+/**
+ * Autorius kalbos lauko užpildyti neprivalo, todėl atmetam tik tada, kai jis
+ * užpildytas ir nurodo kitą kalbą. Tuščias laukas nieko nesako — paliekam.
+ */
+function languageAllowed(video: Video): boolean {
+  if (!config.language) return true;
+  if (!video.language) return true;
+  return video.language.toLowerCase().startsWith(config.language.toLowerCase());
+}
+
 function licenseLabel(license: string): string {
   return license === "creativeCommon" ? "CC (galima remiksuoti)" : "standartinė";
 }
@@ -246,6 +262,9 @@ async function main(): Promise<void> {
   videos = videos.filter((v) => v.seconds > 0 && v.seconds <= config.maxDurationSeconds);
   videos = videos.filter((v) => !seenIds.has(v.id));
   console.log(`Po trukmės ir seen.json filtrų liko ${videos.length}`);
+
+  videos = videos.filter(languageAllowed);
+  console.log(`Po kalbos filtro (${config.language ?? "be filtro"}) liko ${videos.length}`);
 
   videos = await filterShorts(videos);
   console.log(`Po Shorts patikros liko ${videos.length}`);

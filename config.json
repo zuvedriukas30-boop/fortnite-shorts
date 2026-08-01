@@ -10,6 +10,7 @@
   "topN": 3,
   "seenRetentionDays": 30,
   "sortBy": "viewsPerHour",
+  "language": "en",
   "shortsCheck": {
     "batchSize": 10,
     "delayMs": 200

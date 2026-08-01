@@ -26,6 +26,7 @@ Viskas `config.json`:
 | `topN` | kiek video siųsti |
 | `seenRetentionDays` | kiek dienų video laikomas „jau matytu" |
 | `sortBy` | `viewsPerHour` (greičiausiai augantys) arba `viewCount` (daugiausia peržiūrų) |
+| `language` | `"en"` — angliška paieška ir ne angliškų video atmetimas; `null` išjungia |
 
 ## Automatinis paleidimas
 
