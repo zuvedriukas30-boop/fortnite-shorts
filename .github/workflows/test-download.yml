@@ -1,0 +1,39 @@
+name: TEST parsisiuntimas
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Diegiam yt-dlp
+        run: |
+          sudo curl -sL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
+          sudo chmod a+rx /usr/local/bin/yt-dlp
+          yt-dlp --version
+          ffmpeg -version | head -1
+
+      - name: Bandom parsisiųsti
+        id: dl
+        continue-on-error: true
+        run: |
+          yt-dlp --no-playlist \
+            -f "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b" \
+            --merge-output-format mp4 \
+            -o test.mp4 \
+            "https://www.youtube.com/watch?v=a21NtSWnqd0"
+          ls -l test.mp4
+          echo "DYDIS_MB=$(du -m test.mp4 | cut -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Rezultatas
+        run: echo "Parsisiuntimas: ${{ steps.dl.outcome }}"
+
+      - name: Siunčiam į Telegram
+        if: steps.dl.outcome == 'success'
+        run: |
+          curl -sS -X POST \
+            "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendVideo" \
+            -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -F caption="BANDYMAS: ar video ateina failu" \
+            -F video=@test.mp4 | head -c 400
