@@ -27,7 +27,8 @@ jobs:
           echo "DYDIS_MB=$(du -m test.mp4 | cut -f1)" >> "$GITHUB_OUTPUT"
 
       - name: Rezultatas
-        run: echo "Parsisiuntimas: ${{ steps.dl.outcome }}"
+        run: |
+          echo "Parsisiuntimas: ${{ steps.dl.outcome }}"
 
       - name: Siunčiam į Telegram
         if: steps.dl.outcome == 'success'
