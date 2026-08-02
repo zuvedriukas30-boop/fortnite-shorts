@@ -13,6 +13,7 @@ const YOUTUBE_API = "https://www.googleapis.com/youtube/v3";
 type Config = {
   queries: string[];
   lookbackHours: number;
+  minAgeHours: number;
   maxResultsPerQuery: number;
   maxDurationSeconds: number;
   topN: number;
@@ -86,13 +87,18 @@ async function youtube(path: string, params: Record<string, string>): Promise<an
   return res.json();
 }
 
-async function searchIds(query: string, publishedAfter: string): Promise<string[]> {
+async function searchIds(
+  query: string,
+  publishedAfter: string,
+  publishedBefore: string,
+): Promise<string[]> {
   const params: Record<string, string> = {
     part: "snippet",
     type: "video",
     videoDuration: "short",
     order: "viewCount",
     publishedAfter,
+    publishedBefore,
     maxResults: String(config.maxResultsPerQuery),
     q: query,
   };
@@ -233,6 +239,7 @@ function buildMessage(videos: Video[], today: string, note?: string): string {
     lines.push("");
   });
   if (note) lines.push(note);
+  lines.push("Nepatiko? Parašyk /dar — atsiųsiu kitus 3.");
   return lines.join("\n").trim();
 }
 
@@ -247,13 +254,18 @@ async function main(): Promise<void> {
     day: "2-digit",
   }).format(new Date());
 
+  // Imam vakar dienos langą: jaunesni nei minAgeHours video dar nespėjo surinkti
+  // peržiūrų, tad pagal juos spręsti apie populiarumą būtų anksti.
   const publishedAfter = new Date(Date.now() - config.lookbackHours * 3_600_000).toISOString();
+  const publishedBefore = new Date(Date.now() - config.minAgeHours * 3_600_000).toISOString();
 
   const ids = new Set<string>();
   for (const query of config.queries) {
-    for (const id of await searchIds(query, publishedAfter)) ids.add(id);
+    for (const id of await searchIds(query, publishedAfter, publishedBefore)) ids.add(id);
   }
-  console.log(`Paieška grąžino ${ids.size} unikalių video`);
+  console.log(
+    `Paieška (${config.minAgeHours}-${config.lookbackHours} val. senumo) grąžino ${ids.size} unikalių video`,
+  );
 
   const seen = loadSeen();
   const seenIds = new Set(seen.map((entry) => entry.id));
@@ -275,7 +287,7 @@ async function main(): Promise<void> {
 
   if (picked.length === 0) {
     await telegram(
-      `🎮 Fortnite Shorts — ${today}\n\nŠiandien nė vienas video nepraėjo filtrų. Galimos priežastys: per mažai naujų Shorts per pastarąsias ${config.lookbackHours} val., arba visi rasti jau buvo siųsti anksčiau (seen.json).`,
+      `🎮 Fortnite Shorts — ${today}\n\nŠiandien nė vienas video nepraėjo filtrų. Galimos priežastys: per mažai tinkamų Shorts ${config.minAgeHours}-${config.lookbackHours} val. senumo lange, arba visi rasti jau buvo siųsti anksčiau.`,
     );
     return;
   }

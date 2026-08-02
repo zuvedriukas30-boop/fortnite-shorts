@@ -1,21 +1,20 @@
-name: Top 3 Fortnite Shorts
+name: Telegram komandos
 
 on:
-  # 04:00 UTC = 07:00 Vilniuje vasarą, 06:00 žiemą (GitHub cron dirba tik UTC).
   schedule:
-    - cron: "0 4 * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
 
-# Bendra grupė su listen.yml — kad du darbai vienu metu nerašytų seen.json.
+# Bendra grupė su daily.yml — kad du darbai vienu metu nerašytų seen.json.
 concurrency:
   group: fortnite-shorts
   cancel-in-progress: false
 
 jobs:
-  find:
+  listen:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +23,15 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Ieškom ir siunčiam į Telegram
+      - name: Tikrinam komandas
+        id: check
+        run: node src/listen.ts
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Ieškom ir siunčiam
+        if: steps.check.outputs.run == 'true'
         run: npm run find:ci
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
@@ -32,11 +39,12 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
       - name: Įrašom seen.json atgal į repo
+        if: steps.check.outputs.run == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add seen.json
           git diff --staged --quiet && exit 0
-          git commit -m "chore: atnaujintas seen.json"
+          git commit -m "chore: atnaujintas seen.json (/dar)"
           git pull --rebase --autostash
           git push
