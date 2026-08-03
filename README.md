@@ -29,17 +29,24 @@ Viskas `config.json`:
 | `sortBy` | `viewsPerHour` (greičiausiai augantys) arba `viewCount` (daugiausia peržiūrų) |
 | `language` | `"en"` — angliška paieška ir ne angliškų video atmetimas; `null` išjungia |
 
-## Komanda /dar
+## Kaip veikia
 
-Telegrame parašius `/dar`, atsiunčiami 3 kiti video (tie, kurie jau buvo, nebekartojami).
+```
+Cloudflare Worker  ──►  GitHub Actions  ──►  Telegram
+   (paleidiklis)         (src/find.ts)
+```
 
-Veikia per `.github/workflows/listen.yml` — kas 5 min. patikrinama, ar laukia komanda.
-Todėl atsakymas ateina ne akimirksniu, o per kelias minutes.
+Cloudflare Worker (`worker/`) yra patikimas laikrodis ir Telegram webhook:
 
-## Automatinis paleidimas
+- **07:00 Vilniaus laiku** — pasiunčia GitHub'ui `daily` signalą
+- **Parašius `/dar`** — pasiunčia `dar` signalą ir atsiunčia 3 kitus video
 
-- `.github/workflows/daily.yml` — kasdienis sąrašas
-- `.github/workflows/listen.yml` — `/dar` komandos klausymas
+Nemokami GitHub tvarkaraščiai šiam darbui netiko: `*/5` cron realiai vykdomas
+kartą per valandą, o kasdienis vėluodavo iki 3 val. Todėl laiką valdo Cloudflare,
+o GitHub tik atlieka darbą.
 
-Reikia trijų GitHub Secrets: `YOUTUBE_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
-Repo turi būti viešas — privačiam neužtenka nemokamų GitHub Actions minučių dažnam tikrinimui.
+## Paleidimas
+
+- `.github/workflows/run.yml` — vienintelis workflow, reaguoja į abu signalus
+- GitHub Secrets: `YOUTUBE_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
+- Worker secrets: `GITHUB_TOKEN`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `WEBHOOK_SECRET`
